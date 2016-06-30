@@ -36,4 +36,6 @@ salt-pepper noise and concatenate all the images into one big image called
 
 Note that the default image resolution is 28x28.
 1024 images (32x32 images matrix) concatenated into one image will have a
-resolution of 896x896.
+resolution of 896x896 that will look like that:
+
+![](https://raw.githubusercontent.com/oliviersoares/mnist_render/master/mnist.png)
