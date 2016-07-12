@@ -65,13 +65,14 @@ def img_default_format():
   return img_formats()[0]
 
 
-def create_label_img(res, min_thick_scale, max_thick_scale, min_size_scale,
-                     max_size_scale, placement, max_it, seed):
+def create_label_img(res, inv_colors, min_thick_scale, max_thick_scale,
+                     min_size_scale, max_size_scale, placement, max_it, seed):
   '''
   Create a labeled image.
 
   Args:
     res            : resolution of the image (square)
+    inv_colors     : inverse the colors?
     min_thick_scale: minimum thickness scale
     max_thick_scale: maximum thickness scale
     min_size_scale : minimum size scale
@@ -144,9 +145,16 @@ def create_label_img(res, min_thick_scale, max_thick_scale, min_size_scale,
 
   # Create the image
   img = np.zeros((res, res), np.int32)
+
+  if inv_colors:
+    img[:] = 0xFF
+    color  = 0
+  else:
+    color = 0xFF
+
   cv2.putText(img, text,
               ((res - size[0] + delta_x) >> 1, (res + size[1] + delta_y) >> 1),
-              font, scale, 0xFF, thick)
+              font, scale, color, thick)
   return (img, label)
 
 
@@ -245,8 +253,8 @@ def add_spnoise_img(img, spnoise, seed):
   return res
 
 
-def render_img(res, min_thick_scale, max_thick_scale, min_size_scale,
-               max_size_scale, min_distortion, max_distortion,
+def render_img(res, inv_colors, min_thick_scale, max_thick_scale,
+               min_size_scale, max_size_scale, min_distortion, max_distortion,
                min_gaussian_noise, max_gaussian_noise, min_salt_pepper_noise,
                max_salt_pepper_noise, placement, max_it, seed):
   '''
@@ -254,6 +262,7 @@ def render_img(res, min_thick_scale, max_thick_scale, min_size_scale,
 
   Args:
     res                  : resolution of the image (square)
+    inv_colors           : inverse the colors?
     min_thick_scale      : minimum thickness scale
     max_thick_scale      : maximum thickness scale
     min_size_scale       : minimum size scale
@@ -284,9 +293,9 @@ def render_img(res, min_thick_scale, max_thick_scale, min_size_scale,
                                      max_salt_pepper_noise)
 
   # Create the label image
-  (img, label) = create_label_img(res, min_thick_scale, max_thick_scale,
-                                  min_size_scale, max_size_scale,
-                                  placement, max_it, seed + 1)
+  (img, label) = create_label_img(res, inv_colors, min_thick_scale,
+                                  max_thick_scale, min_size_scale,
+                                  max_size_scale, placement, max_it, seed + 1)
 
   # Distort the image
   img = distort_img(img, distortion, seed + 2)
@@ -307,16 +316,18 @@ def render_img(res, min_thick_scale, max_thick_scale, min_size_scale,
   return (img8, label)
 
 
-def render(num, res, min_thick_scale, max_thick_scale, min_size_scale,
-           max_size_scale, min_distortion, max_distortion, min_gaussian_noise,
-           max_gaussian_noise, min_salt_pepper_noise, max_salt_pepper_noise,
-           placement, max_it, seed, format, out, concatenate):
+def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
+           min_size_scale, max_size_scale, min_distortion, max_distortion,
+           min_gaussian_noise, max_gaussian_noise, min_salt_pepper_noise,
+           max_salt_pepper_noise, placement, max_it, seed, format, out,
+           concatenate):
   '''
   Render some images.
 
   Args:
     num                  : number of images to render
     res                  : resolution of the image (square)
+    inv_colors           : inverse the colors?
     min_thick_scale      : minimum thickness scale
     max_thick_scale      : maximum thickness scale
     min_size_scale       : minimum size scale
@@ -357,12 +368,12 @@ def render(num, res, min_thick_scale, max_thick_scale, min_size_scale,
 
   for i in range(num):
     # Render the image
-    (img, label) = render_img(res, min_thick_scale, max_thick_scale,
-                              min_size_scale, max_size_scale, min_distortion,
-                              max_distortion, min_gaussian_noise,
-                              max_gaussian_noise, min_salt_pepper_noise,
-                              max_salt_pepper_noise, placement, max_it,
-                              seed + i)
+    (img, label) = render_img(res, inv_colors, min_thick_scale,
+                              max_thick_scale, min_size_scale, max_size_scale,
+                              min_distortion, max_distortion,
+                              min_gaussian_noise, max_gaussian_noise,
+                              min_salt_pepper_noise, max_salt_pepper_noise,
+                              placement, max_it, seed + i)
     if concatenate:
       # Append images to the list of column images
       if not shape:
@@ -410,6 +421,8 @@ def main():
                                  type = int, default = 1)
   parser.add_argument("-res"   , help = "Resolution of the rendered images",
                                  type = int, default = 28)
+  parser.add_argument("-inv"   , help = "Inverse the colors",
+                                 action = "store_true")
   parser.add_argument("-tmin"  , help = "Min thickness scale",
                                  type = float, default = 0.8)
   parser.add_argument("-tmax"  , help = "Max thickness scale",
@@ -445,8 +458,8 @@ def main():
   args = parser.parse_args()
 
   # Call the renderer
-  render(args.num, args.res, args.tmin, args.tmax, args.fmin, args.fmax,
-         args.dmin, args.dmax, args.gnmin, args.gnmax, args.spnmin,
+  render(args.num, args.res, args.inv, args.tmin, args.tmax, args.fmin,
+         args.fmax, args.dmin, args.dmax, args.gnmin, args.gnmax, args.spnmin,
          args.spnmax, args.place, args.it, args.seed, args.format,
          args.out, args.concat)
 
