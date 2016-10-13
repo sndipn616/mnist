@@ -45,7 +45,7 @@ To generate a fully compatible MNIST dataset (60k training images and 10k
 testing images) you can try:
 ```sh
 python mnist_render.py -out . -num 60000 -seed 101 -dmax 1.0 -gnmax 0.4 -spnmax 0.1 -dataset -prefix train
-python mnist_render.py -out . -num 10000 -seed 102 -dmax 1.0 -gnmax 0.4 -spnmax 0.1 -dataset -prefix tk10
+python mnist_render.py -out . -num 10000 -seed 102 -dmax 1.0 -gnmax 0.4 -spnmax 0.1 -dataset -prefix t10k
 ```
 
 It will generate 4 files (2 training files, images and labels, and 2 testing
@@ -53,8 +53,8 @@ files):
 ```sh
 train-images-idx3-ubyte
 train-labels-idx1-ubyte
-tk10-images-idx3-ubyte
-tk10-labels-idx1-ubyte
+t10k-images-idx3-ubyte
+t10k-labels-idx1-ubyte
 ```
 
 Make sure the seed is different for the training and testing datasets so all
