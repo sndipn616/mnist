@@ -92,12 +92,12 @@ def create_label_img(res, inv_colors, min_thick_scale, max_thick_scale,
 
   # Available system (OpenCV) fonts
   fonts = [cv2.FONT_HERSHEY_SIMPLEX,
-  	  	   cv2.FONT_HERSHEY_PLAIN,
-  	  	   cv2.FONT_HERSHEY_DUPLEX,
-  	  	   cv2.FONT_HERSHEY_COMPLEX,
-  	  	   cv2.FONT_HERSHEY_TRIPLEX,
-  	  	   cv2.FONT_HERSHEY_COMPLEX_SMALL,
-  	  	   cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
+           cv2.FONT_HERSHEY_PLAIN,
+           cv2.FONT_HERSHEY_DUPLEX,
+           cv2.FONT_HERSHEY_COMPLEX,
+           cv2.FONT_HERSHEY_TRIPLEX,
+           cv2.FONT_HERSHEY_COMPLEX_SMALL,
+           cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
            cv2.FONT_HERSHEY_SCRIPT_COMPLEX]
 
   # Choose a random font and label
@@ -181,7 +181,7 @@ def distort_img(img, distortion, seed):
   np.random.seed(seed)
 
   # Generate a random transformation matrix (identity matrix + some noise)
-  mat = np.identity(3) + 0.001 * distortion * np.random.randn(3, 3)
+  mat = np.identity(3) + 0.001 * distortion * (2 * np.random.rand(3, 3) - 1)
 
   # Apply it
   return cv2.warpPerspective(img, mat, (img.shape[0], img.shape[1]),
@@ -208,11 +208,10 @@ def add_gnoise_img(img, gnoise, seed):
   # Initialize the seed
   if seed < 0:
     seed = int(time.time())
-  cv2.setRNGSeed(seed)
+  np.random.seed(seed)
 
   # Noise image
-  noise = np.zeros(img.shape, img.dtype)
-  cv2.randn(noise, 0, int(gnoise * 0xFF))
+  noise = np.random.rand(*img.shape) * gnoise * 0xFF
 
   # Apply gaussian noise
   return img + noise
@@ -238,11 +237,10 @@ def add_spnoise_img(img, spnoise, seed):
   # Initialize the seed
   if seed < 0:
     seed = int(time.time())
-  cv2.setRNGSeed(seed)
+  np.random.seed(seed)
 
-  # Noise image
-  noise = np.zeros(img.shape, img.dtype)
-  cv2.randu(noise, 0, 0xFF)
+  # Noise image and threshold
+  noise     = np.random.rand(*img.shape) * 0xFF
   threshold = spnoise * 0.1 * 0xFF
 
   # Apply salt-pepper noise
@@ -316,11 +314,25 @@ def render_img(res, inv_colors, min_thick_scale, max_thick_scale,
   return (img8, label)
 
 
+def int32(val):
+  '''
+  Convert an integer value to a 32-bit bitarray.
+  
+  Args:
+    val: integer value
+
+  Returns:
+    32-bit bitarray
+  '''
+
+  return bytearray([(val >> i & 0xFF) for i in (24, 16, 8, 0)])
+
+
 def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
            min_size_scale, max_size_scale, min_distortion, max_distortion,
            min_gaussian_noise, max_gaussian_noise, min_salt_pepper_noise,
            max_salt_pepper_noise, placement, max_it, seed, format, out,
-           concatenate):
+           prefix, concatenate, dataset):
   '''
   Render some images.
 
@@ -343,7 +355,9 @@ def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
     seed                 : random seed (< 0: random value based on system time)
     format               : output file format
     out                  : output directory
+    prefix               : file prefix
     concatenate          : concatenate all the images
+    dataset              : create a dataset
   '''
 
   if format not in img_formats():
@@ -360,11 +374,32 @@ def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
   if num < 1:
     num = 1
 
+  if not prefix:
+    prefix = "mnist"
+
+  if dataset:
+    concatenate = False
+
   if concatenate:
     bigmat_cols = int(math.floor(math.sqrt(num) + 0.5))
     col_imgs    = []
     row_imgs    = []
     shape       = None
+
+  if dataset:
+    image_dataset_path = os.path.join(out, "%s-images-idx3-ubyte" % prefix)
+    label_dataset_path = os.path.join(out, "%s-labels-idx1-ubyte" % prefix)
+    image_dataset_file = open(image_dataset_path, "wb")
+    label_dataset_file = open(label_dataset_path, "wb")
+    # Magic number
+    image_dataset_file.write(int32(0x803))
+    label_dataset_file.write(int32(0x801))
+    # Number of images
+    image_dataset_file.write(int32(num))
+    label_dataset_file.write(int32(num))
+    # Image width and height
+    image_dataset_file.write(int32(res))
+    image_dataset_file.write(int32(res))
 
   for i in range(num):
     # Render the image
@@ -374,6 +409,11 @@ def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
                               min_gaussian_noise, max_gaussian_noise,
                               min_salt_pepper_noise, max_salt_pepper_noise,
                               placement, max_it, seed + i)
+    if dataset:
+      img.tofile(image_dataset_file)
+      label_dataset_file.write(bytearray([label]))
+      continue
+
     if concatenate:
       # Append images to the list of column images
       if not shape:
@@ -387,12 +427,13 @@ def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
         # append to result images to the list of row images
         row_imgs.append(np.hstack(col_imgs))
         col_imgs = []
-    else:
-      # No concatenate: just save the image
-      img_name = "mnist_%06d.%s" % (i, format)
-      img_path = os.path.join(out, img_name)
-      if not cv2.imwrite(img_path, img):
-        raise Exception("Can't create image file '%s'" % img_path)
+      continue
+
+    # Just save the image
+    img_name = "%s_%06d.%s" % (prefix, i, format)
+    img_path = os.path.join(out, img_name)
+    if not cv2.imwrite(img_path, img):
+      raise Exception("Can't create image file '%s'" % img_path)
 
   if concatenate:
     if len(col_imgs):
@@ -403,9 +444,13 @@ def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
     # Stack all the row images
     img = np.vstack(row_imgs)
     # Save the final image
-    img_path = os.path.join(out, "mnist.%s" % format)
+    img_path = os.path.join(out, "%s.%s" % (prefix, format))
     if not cv2.imwrite(img_path, img):
       raise Exception("Can't create image file '%s'" % img_path)
+
+  if dataset:
+    image_dataset_file.close()
+    label_dataset_file.close()
 
 
 def main():
@@ -415,53 +460,56 @@ def main():
 
   # Arguments parser
   parser = argparse.ArgumentParser(description = "MNIST Dataset Renderer.")
-  parser.add_argument("-out"   , help = "Output directory",
-                                 type = str, required = True)
-  parser.add_argument("-num"   , help = "Number of images to render",
-                                 type = int, default = 1)
-  parser.add_argument("-res"   , help = "Resolution of the rendered images",
-                                 type = int, default = 28)
-  parser.add_argument("-inv"   , help = "Inverse the colors",
-                                 action = "store_true")
-  parser.add_argument("-tmin"  , help = "Min thickness scale",
-                                 type = float, default = 0.8)
-  parser.add_argument("-tmax"  , help = "Max thickness scale",
-                                 type = float, default = 1.2)
-  parser.add_argument("-fmin"  , help = "Min font scale",
-                                 type = float, default = 0.6)
-  parser.add_argument("-fmax"  , help = "Max font scale",
-                                 type = float, default = 0.8)
-  parser.add_argument("-gnmin" , help = "Min gaussian noise",
-                                 type = float, default = 0.0)
-  parser.add_argument("-gnmax" , help = "Max gaussian noise",
-                                 type = float, default = 0.0)
-  parser.add_argument("-spnmin", help = "Min salt-pepper noise",
-                                 type = float, default = 0.0)
-  parser.add_argument("-spnmax", help = "Max salt-pepper noise",
-                                 type = float, default = 0.0)
-  parser.add_argument("-dmin"  , help = "Min distortion",
-                                 type = float, default = 0.0)
-  parser.add_argument("-dmax"  , help = "Max distortion",
-                                 type = float, default = 0.0)
-  parser.add_argument("-place" , help = "Placement",
-                                 type = float, default = 0.0)
-  parser.add_argument("-it"    , help = "Max number of iterations",
-                                 type = int, default = 10)
-  parser.add_argument("-seed"  , help = "Random seed",
-                                 type = int, default = -1)
-  parser.add_argument("-format", help = "Image file format (%s)" %
-                                 ", ".join(img_formats()),
-                                 type = str, default = img_default_format())
-  parser.add_argument("-concat", help = "Concatenate all the images into one",
-                                 action = "store_true")
+  parser.add_argument("-out"    , help = "Output directory",
+                                  type = str, required = True)
+  parser.add_argument("-num"    , help = "Number of images to render",
+                                  type = int, default = 1)
+  parser.add_argument("-res"    , help = "Resolution of the rendered images",
+                                  type = int, default = 28)
+  parser.add_argument("-inv"    , help = "Inverse the colors",
+                                  action = "store_true")
+  parser.add_argument("-tmin"   , help = "Min thickness scale",
+                                  type = float, default = 0.8)
+  parser.add_argument("-tmax"   , help = "Max thickness scale",
+                                  type = float, default = 1.2)
+  parser.add_argument("-fmin"   , help = "Min font scale",
+                                  type = float, default = 0.6)
+  parser.add_argument("-fmax"   , help = "Max font scale",
+                                  type = float, default = 0.8)
+  parser.add_argument("-gnmin"  , help = "Min gaussian noise",
+                                  type = float, default = 0.0)
+  parser.add_argument("-gnmax"  , help = "Max gaussian noise",
+                                  type = float, default = 0.0)
+  parser.add_argument("-spnmin" , help = "Min salt-pepper noise",
+                                  type = float, default = 0.0)
+  parser.add_argument("-spnmax" , help = "Max salt-pepper noise",
+                                  type = float, default = 0.0)
+  parser.add_argument("-dmin"   , help = "Min distortion",
+                                  type = float, default = 0.0)
+  parser.add_argument("-dmax"   , help = "Max distortion",
+                                  type = float, default = 0.0)
+  parser.add_argument("-place"  , help = "Placement",
+                                  type = float, default = 0.0)
+  parser.add_argument("-it"     , help = "Max number of iterations",
+                                  type = int, default = 10)
+  parser.add_argument("-seed"   , help = "Random seed",
+                                  type = int, default = -1)
+  parser.add_argument("-format" , help = "Image file format (%s)" %
+                                  ", ".join(img_formats()),
+                                  type = str, default = img_default_format())
+  parser.add_argument("-prefix" , help = "Filename prefix", default = "mnist")
+  parser.add_argument("-concat" , help = "Concatenate all the images into one",
+                                  action = "store_true")
+  parser.add_argument("-dataset", help = "Create a MNIST dataset",
+                                  action = "store_true")
 
   args = parser.parse_args()
 
   # Call the renderer
   render(args.num, args.res, args.inv, args.tmin, args.tmax, args.fmin,
-         args.fmax, args.dmin, args.dmax, args.gnmin, args.gnmax, args.spnmin,
-         args.spnmax, args.place, args.it, args.seed, args.format,
-         args.out, args.concat)
+         args.fmax, args.dmin, args.dmax, args.gnmin, args.gnmax,
+         args.spnmin, args.spnmax, args.place, args.it, args.seed,
+         args.format, args.out, args.prefix, args.concat, args.dataset)
 
 
 if __name__ == "__main__":

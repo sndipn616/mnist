@@ -1,24 +1,22 @@
-MNIST Dataset Renderer
-======================
+# MNIST Dataset Renderer
 
+Release 1.0 (October 2016)
 
-### Info
+## Info
 
 This script generates N random single digit images.
 The digit in each image is randomly sized and placed while some distortion and
 noise gets applied.
 
-See: http://yann.lecun.com/exdb/mnist/
-for the original dataset.
+See <a href="http://yann.lecun.com/exdb/mnist" target="_blank">here</a> for
+the original dataset.
 
-
-### Requirements
+## Requirements
 
 This python script is mostly using numpy and opencv.
 Make sure you have both of them.
 
-
-### Usage
+## Usage
 
 To get help, just type:
 ```sh
@@ -30,12 +28,40 @@ Try for example:
 python mnist_render.py -out . -num 1024 -seed 100 -dmax 1.0 -gnmax 0.4 -spnmax 0.1 -concat
 ```
 
-It will generate 1024 random digit images with some distortion, gaussian and
-salt-pepper noise and concatenate all the images into one big image called
-"mnist.png".
+It will generate an image:
+```sh
+mnist.png
+```
+with 1024 random digit images with some distortion, gaussian and salt-pepper
+noise.
 
 Note that the default image resolution is 28x28.
 1024 images (32x32 images matrix) concatenated into one image will have a
 resolution of 896x896 that will look like that:
 
 ![](https://raw.githubusercontent.com/oliviersoares/mnist_render/master/mnist.png)
+
+To generate a fully compatible MNIST dataset (60k training images and 10k
+testing images) you can try:
+```sh
+python mnist_render.py -out . -num 60000 -seed 101 -dmax 1.0 -gnmax 0.4 -spnmax 0.1 -dataset -prefix train
+python mnist_render.py -out . -num 10000 -seed 102 -dmax 1.0 -gnmax 0.4 -spnmax 0.1 -dataset -prefix tk10
+```
+
+It will generate 4 files (2 training files, images and labels, and 2 testing
+files):
+```sh
+train-images-idx3-ubyte
+train-labels-idx1-ubyte
+tk10-images-idx3-ubyte
+tk10-labels-idx1-ubyte
+```
+
+Make sure the seed is different for the training and testing datasets so all
+images are unique (i.e. no training image ends up in the testing set as well).
+
+You can start training this dataset with
+<a href="https://www.tensorflow.org" target="_blank">Tensorflow</a>,
+<a href="http://caffe.berkeleyvision.org" target="_blank">Caffe</a>
+or my own framework
+<a href="https://github.com/oliviersoares/jik" target="_blank">JIK</a>.
