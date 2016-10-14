@@ -44,9 +44,12 @@ resolution of 896x896 that will look like that:
 To generate a fully compatible MNIST dataset (60k training images and 10k
 testing images) you can try:
 ```sh
-python mnist_render.py -out . -num 60000 -seed 101 -dmax 1.0 -gnmax 0.4 -spnmax 0.1 -dataset -prefix train
-python mnist_render.py -out . -num 10000 -seed 102 -dmax 1.0 -gnmax 0.4 -spnmax 0.1 -dataset -prefix t10k
+python mnist_render.py -out . -num 60000 -seed 101 -dmax 1.0 -dataset -prefix train
+python mnist_render.py -out . -num 10000 -seed 102 -dmax 1.0 -dataset -prefix t10k
 ```
+
+Note that we removed the noise here to match the original MNIST dataset.
+We left however some distortion.
 
 It will generate 4 files (2 training files, images and labels, and 2 testing
 files):
