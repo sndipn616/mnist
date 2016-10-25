@@ -328,16 +328,16 @@ def int32(val):
   return bytearray([(val >> i & 0xFF) for i in (24, 16, 8, 0)])
 
 
-def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
+def render(num_img, res, inv_colors, min_thick_scale, max_thick_scale,
            min_size_scale, max_size_scale, min_distortion, max_distortion,
            min_gaussian_noise, max_gaussian_noise, min_salt_pepper_noise,
-           max_salt_pepper_noise, placement, max_it, seed, format, out,
+           max_salt_pepper_noise, placement, max_it, seed, format, output_dir,
            prefix, concatenate, dataset):
   '''
   Render some images.
 
   Args:
-    num                  : number of images to render
+    num_img              : number of images to render
     res                  : resolution of the image (square)
     inv_colors           : inverse the colors?
     min_thick_scale      : minimum thickness scale
@@ -354,25 +354,27 @@ def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
     max_it               : maximum number of iterations
     seed                 : random seed (< 0: random value based on system time)
     format               : output file format
-    out                  : output directory
+    output_dir           : output directory
     prefix               : file prefix
     concatenate          : concatenate all the images
     dataset              : create a dataset
   '''
 
   if format not in img_formats():
-    raise Exception("Unknown file format '%s'" % format)
+    print("Unknown file format '%s'" % format)
+    return
 
   # Check the output directory exists, create it if not
-  if not os.path.isdir(out):
+  if not os.path.isdir(output_dir):
     try:
-      os.makedirs(out)
+      os.makedirs(output_dir)
     except Exception as e:
-      raise Exception("Can't create '%s': %s" % (out, e))
+      print("Can't create '%s': %s" % (output_dir, e))
+      return
 
   # We need to generate at least 1 image
-  if num < 1:
-    num = 1
+  if num_img < 1:
+    num_img = 1
 
   if not prefix:
     prefix = "mnist"
@@ -381,27 +383,32 @@ def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
     concatenate = False
 
   if concatenate:
-    bigmat_cols = int(math.floor(math.sqrt(num) + 0.5))
+    bigmat_cols = int(math.floor(math.sqrt(num_img) + 0.5))
     col_imgs    = []
     row_imgs    = []
     shape       = None
 
   if dataset:
-    image_dataset_path = os.path.join(out, "%s-images-idx3-ubyte" % prefix)
-    label_dataset_path = os.path.join(out, "%s-labels-idx1-ubyte" % prefix)
-    image_dataset_file = open(image_dataset_path, "wb")
-    label_dataset_file = open(label_dataset_path, "wb")
+    # Create the MNIST files
+    image_path = os.path.join(output_dir, "%s-images-idx3-ubyte" % prefix)
+    label_path = os.path.join(output_dir, "%s-labels-idx1-ubyte" % prefix)
+    try:
+      image_file = open(image_path, "wb")
+      label_file = open(label_path, "wb")
+    except Exception as e:
+      print("Can't write output MNIST files: %s" % e)
+      return
     # Magic number
-    image_dataset_file.write(int32(0x803))
-    label_dataset_file.write(int32(0x801))
+    image_file.write(int32(0x803))
+    label_file.write(int32(0x801))
     # Number of images
-    image_dataset_file.write(int32(num))
-    label_dataset_file.write(int32(num))
+    image_file.write(int32(num_img))
+    label_file.write(int32(num_img))
     # Image width and height
-    image_dataset_file.write(int32(res))
-    image_dataset_file.write(int32(res))
+    image_file.write(int32(res))
+    image_file.write(int32(res))
 
-  for i in range(num):
+  for i in range(num_img):
     # Render the image
     (img, label) = render_img(res, inv_colors, min_thick_scale,
                               max_thick_scale, min_size_scale, max_size_scale,
@@ -410,8 +417,10 @@ def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
                               min_salt_pepper_noise, max_salt_pepper_noise,
                               placement, max_it, seed + i)
     if dataset:
-      img.tofile(image_dataset_file)
-      label_dataset_file.write(bytearray([label]))
+      img.tofile(image_file)
+      label_file.write(bytearray([label]))
+      image_file.flush()
+      label_file.flush()
       continue
 
     if concatenate:
@@ -419,8 +428,9 @@ def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
       if not shape:
         shape = img.shape
       if img.shape != shape:
-        raise Exception("Images have different shapes (%s instead of %s)" %
-                       (img.shape, shape))
+        print("Images have different shapes (%s instead of %s)" %
+             (img.shape, shape))
+        return
       col_imgs.append(img)
       if len(col_imgs) >= bigmat_cols:
         # Once the colum is complete, stack all the images and
@@ -431,9 +441,10 @@ def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
 
     # Just save the image
     img_name = "%s_%06d.%s" % (prefix, i, format)
-    img_path = os.path.join(out, img_name)
+    img_path = os.path.join(output_dir, img_name)
     if not cv2.imwrite(img_path, img):
-      raise Exception("Can't create image file '%s'" % img_path)
+      print("Can't create image file '%s'" % img_path)
+      return
 
   if concatenate:
     if len(col_imgs):
@@ -444,13 +455,15 @@ def render(num, res, inv_colors, min_thick_scale, max_thick_scale,
     # Stack all the row images
     img = np.vstack(row_imgs)
     # Save the final image
-    img_path = os.path.join(out, "%s.%s" % (prefix, format))
+    img_path = os.path.join(output_dir, "%s.%s" % (prefix, format))
     if not cv2.imwrite(img_path, img):
-      raise Exception("Can't create image file '%s'" % img_path)
+      print("Can't create image file '%s'" % img_path)
+      return
 
   if dataset:
-    image_dataset_file.close()
-    label_dataset_file.close()
+    # Cleanup
+    image_file.close()
+    label_file.close()
 
 
 def main():

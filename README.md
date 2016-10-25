@@ -1,8 +1,10 @@
-# MNIST Dataset Renderer
+# MNIST Dataset Tools
 
 Release 1.0 (October 2016)
 
-## Info
+## MNIST Render
+
+### Info
 
 This script generates N random single digit images.
 The digit in each image is randomly sized and placed while some distortion and
@@ -11,12 +13,12 @@ noise gets applied.
 See <a href="http://yann.lecun.com/exdb/mnist" target="_blank">here</a> for
 the original dataset.
 
-## Requirements
+### Requirements
 
 This python script is mostly using numpy and opencv.
 Make sure you have both of them.
 
-## Usage
+### Usage
 
 To get help, just type:
 ```sh
@@ -68,3 +70,34 @@ You can start training this dataset with
 <a href="http://caffe.berkeleyvision.org" target="_blank">Caffe</a>
 or my own framework
 <a href="https://github.com/oliviersoares/jik" target="_blank">JIK</a>.
+
+## SVHN To MNIST
+
+
+### Info
+
+This script convert the SVHN (Street View House Number) dataset to a MNIST
+dataset format.
+Note that, by default, the final resolution will be 28x28 (down from 32x32)
+and grayscale (down from RGB).
+
+See <a href="http://ufldl.stanford.edu/housenumbers" target="_blank">here</a>
+for the original dataset.
+
+### Requirements
+
+This python script is mostly using numpy, scipy and opencv.
+Make sure you have all of them.
+
+### Usage
+
+To get help, just type:
+```sh
+python svhn_to_mnist.py -h
+```
+
+Try for example the following to convert the SVHN training set:
+```sh
+wget http://ufldl.stanford.edu/housenumbers/test_32x32.mat
+python svhn_to_mnist.py -svhn test_32x32.mat -out . -prefix t10k
+```
