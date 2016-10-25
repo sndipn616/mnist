@@ -76,7 +76,7 @@ or my own framework
 
 ### Info
 
-This script convert the SVHN (Street View House Number) dataset to a MNIST
+This script convert the SVHN (Street View House Numbers) dataset to a MNIST
 dataset format.
 Note that, by default, the final resolution will be 28x28 (down from 32x32)
 and grayscale (down from RGB).

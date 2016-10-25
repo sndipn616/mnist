@@ -31,7 +31,7 @@
 """
   SVHN to MNIST Dataset Converter.
 
-  This script convert a SVHN dataset (Street View House Number)
+  This script convert a SVHN dataset (Street View House Numbers)
   to a MNIST dataset format.
 
   See the SVHN dataset format here:
