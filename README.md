@@ -73,7 +73,6 @@ or my own framework
 
 ## SVHN To MNIST
 
-
 ### Info
 
 This script convert the SVHN (Street View House Numbers) dataset to a MNIST
