@@ -159,7 +159,8 @@ def svhn_to_mnist(svhn_path, output_dir, res, prefix):
       return
     img = cv2.resize(img, (img_dst_width, img_dst_height))
     img.tofile(image_file)
-    label_file.write(bytearray([labels[i][0]]))
+    # Label is saved as 1-based, convert to 0-based
+    label_file.write(bytearray([labels[i][0] - 1]))
     image_file.flush()
     label_file.flush()
 

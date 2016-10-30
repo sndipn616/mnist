@@ -130,8 +130,9 @@ def svhn_to_cifar10(svhn_path, output_dir, res, prefix):
       print("Unknown image depth of %d" % img_src_depth)
       return
     img = cv2.resize(img, (img_dst_width, img_dst_height))
+    # Label is saved as 1-based, convert to 0-based
+    image_file.write(bytearray([labels[i][0] - 1]))
     img.tofile(image_file)
-    image_file.write(bytearray([labels[i][0]]))
     image_file.flush()
 
   # Cleanup
