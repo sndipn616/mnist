@@ -100,3 +100,31 @@ Try for example the following to convert the SVHN training set:
 wget http://ufldl.stanford.edu/housenumbers/test_32x32.mat
 python svhn_to_mnist.py -svhn test_32x32.mat -out . -prefix t10k
 ```
+
+## SVHN To CIFAR-10
+
+### Info
+
+This script converts the SVHN (Street View House Numbers) dataset to a
+CIFAR-10 dataset format.
+
+See <a href="http://ufldl.stanford.edu/housenumbers" target="_blank">here</a>
+for the original dataset.
+
+### Requirements
+
+This python script is mostly using numpy, scipy and opencv.
+Make sure you have all of them.
+
+### Usage
+
+To get help, just type:
+```sh
+python svhn_to_cifar10.py -h
+```
+
+Try for example the following to convert the SVHN training set:
+```sh
+wget http://ufldl.stanford.edu/housenumbers/test_32x32.mat
+python svhn_to_cifar10.py -svhn test_32x32.mat -out . -prefix test
+```
