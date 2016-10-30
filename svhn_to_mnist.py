@@ -158,7 +158,6 @@ def svhn_to_mnist(svhn_path, output_dir, res, prefix):
       print("Unknown image depth of %d" % img_src_depth)
       return
     img = cv2.resize(img, (img_dst_width, img_dst_height))
-    cv2.imwrite("/tmp/bla.png", img)
     img.tofile(image_file)
     label_file.write(bytearray([labels[i][0]]))
     image_file.flush()
