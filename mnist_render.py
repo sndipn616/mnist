@@ -28,7 +28,7 @@
 # THE SOFTWARE.
 
 
-"""
+'''
   MNIST Dataset Renderer.
 
   This script generates N random single digit images.
@@ -39,10 +39,10 @@
     http://yann.lecun.com/exdb/mnist/
 
   for the original dataset.
-"""
+'''
 
 
-import os, sys, time, random, math, argparse, numpy as np, cv2
+import os, sys, time, random, math, tempfile, argparse, gzip, numpy as np, cv2
 
 
 def img_formats():
@@ -332,7 +332,7 @@ def render(num_img, res, inv_colors, min_thick_scale, max_thick_scale,
            min_size_scale, max_size_scale, min_distortion, max_distortion,
            min_gaussian_noise, max_gaussian_noise, min_salt_pepper_noise,
            max_salt_pepper_noise, placement, max_it, seed, format, output_dir,
-           prefix, concatenate, dataset):
+           prefix, concatenate, dataset, gz):
   '''
   Render some images.
 
@@ -358,6 +358,7 @@ def render(num_img, res, inv_colors, min_thick_scale, max_thick_scale,
     prefix               : file prefix
     concatenate          : concatenate all the images
     dataset              : create a dataset
+    gz                   : gzip the dataset?
   '''
 
   if format not in img_formats():
@@ -393,8 +394,14 @@ def render(num_img, res, inv_colors, min_thick_scale, max_thick_scale,
     image_path = os.path.join(output_dir, "%s-images-idx3-ubyte" % prefix)
     label_path = os.path.join(output_dir, "%s-labels-idx1-ubyte" % prefix)
     try:
-      image_file = open(image_path, "wb")
-      label_file = open(label_path, "wb")
+      if gz:
+        image_path += ".gz"
+        label_path += ".gz"
+        image_file = tempfile.NamedTemporaryFile(delete = False)
+        label_file = tempfile.NamedTemporaryFile(delete = False)
+      else:
+        image_file = open(image_path, "wb")
+        label_file = open(label_path, "wb")
     except Exception as e:
       print("Can't write output MNIST files: %s" % e)
       return
@@ -417,7 +424,7 @@ def render(num_img, res, inv_colors, min_thick_scale, max_thick_scale,
                               min_salt_pepper_noise, max_salt_pepper_noise,
                               placement, max_it, seed + i)
     if dataset:
-      img.tofile(image_file)
+      image_file.write(img.tostring())
       label_file.write(bytearray([label]))
       image_file.flush()
       label_file.flush()
@@ -462,8 +469,30 @@ def render(num_img, res, inv_colors, min_thick_scale, max_thick_scale,
 
   if dataset:
     # Cleanup
+    if gz:
+      image_path_tmp = image_file.name
+      label_path_tmp = label_file.name
     image_file.close()
     label_file.close()
+    if gz:
+      # Gzip the file
+      try:
+        image_file    = open(image_path_tmp, "rb")
+        label_file    = open(label_path_tmp, "rb")
+        image_file_gz = gzip.open(image_path, "wb")
+        label_file_gz = gzip.open(label_path, "wb")
+      except Exception as e:
+        print("Can't write output MNIST files: %s" % e)
+        return
+      image_file_gz.write(image_file.read())
+      label_file_gz.write(label_file.read())
+      # Cleanup
+      image_file.close()
+      label_file.close()
+      image_file_gz.close()
+      label_file_gz.close()
+      os.remove(image_path_tmp)
+      os.remove(label_path_tmp)
 
 
 def main():
@@ -515,6 +544,8 @@ def main():
                                   action = "store_true")
   parser.add_argument("-dataset", help = "Create a MNIST dataset",
                                   action = "store_true")
+  parser.add_argument("-gz"     , help = "Gzip the MNIST dataset",
+                                  action = "store_true")
 
   args = parser.parse_args()
 
@@ -522,7 +553,8 @@ def main():
   render(args.num, args.res, args.inv, args.tmin, args.tmax, args.fmin,
          args.fmax, args.dmin, args.dmax, args.gnmin, args.gnmax,
          args.spnmin, args.spnmax, args.place, args.it, args.seed,
-         args.format, args.out, args.prefix, args.concat, args.dataset)
+         args.format, args.out, args.prefix, args.concat, args.dataset,
+         args.gz)
 
 
 if __name__ == "__main__":

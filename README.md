@@ -69,7 +69,14 @@ You can start training this dataset with
 <a href="https://www.tensorflow.org" target="_blank">Tensorflow</a>,
 <a href="http://caffe.berkeleyvision.org" target="_blank">Caffe</a>
 or my own framework
-<a href="https://github.com/oliviersoares/jik" target="_blank">JIK</a>.
+<a href="https://github.com/oliviersoares/jik" target="_blank">Jik</a>.
+
+You can also have these files gzipped (like the original dataset) by adding:
+```sh
+-gz
+```
+as a flag to the command line (a .gz extension will be added automatically to
+the file name).
 
 ## SVHN To MNIST
 
