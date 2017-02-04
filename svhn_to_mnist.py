@@ -42,7 +42,9 @@
 """
 
 
-import os, array, argparse, numpy as np, scipy.io as spio, cv2
+import os, array, argparse, tempfile, gzip, cv2
+import numpy as np
+import scipy.io as spio
 
 
 def int32(val):
@@ -59,7 +61,7 @@ def int32(val):
   return bytearray([(val >> i & 0xFF) for i in (24, 16, 8, 0)])
 
 
-def svhn_to_mnist(svhn_path, output_dir, res, prefix):
+def svhn_to_mnist(svhn_path, output_dir, res, prefix, gz):
   '''
   Convert a SVHN dataset to a MNIST dataset format.
 
@@ -68,6 +70,7 @@ def svhn_to_mnist(svhn_path, output_dir, res, prefix):
     output_dir: output directory to store the MNIST dataset
     res       : output MNIST dataset resolution
     prefix    : prefix to the output MNIST dataset
+    gz        : gzip the dataset?
   '''
 
   if not prefix:
@@ -104,14 +107,18 @@ def svhn_to_mnist(svhn_path, output_dir, res, prefix):
       print("Can't create '%s': %s" % (output_dir, e))
       return
 
-  # Path to the image and label files
+  # Create the MNIST files
   image_path = os.path.join(output_dir, "%s-images-idx3-ubyte" % prefix)
   label_path = os.path.join(output_dir, "%s-labels-idx1-ubyte" % prefix)
-
-  # Create the MNIST files
   try:
-    image_file = open(image_path, "wb")
-    label_file = open(label_path, "wb")
+    if gz:
+      image_path += ".gz"
+      label_path += ".gz"
+      image_file = tempfile.NamedTemporaryFile(delete = False)
+      label_file = tempfile.NamedTemporaryFile(delete = False)
+    else:
+      image_file = open(image_path, "wb")
+      label_file = open(label_path, "wb")
   except Exception as e:
     print("Can't write output MNIST files: %s" % e)
     return
@@ -158,15 +165,37 @@ def svhn_to_mnist(svhn_path, output_dir, res, prefix):
       print("Unknown image depth of %d" % img_src_depth)
       return
     img = cv2.resize(img, (img_dst_width, img_dst_height))
-    img.tofile(image_file)
+    image_file.write(img.tostring())
     # Label is saved as 1-based, convert to 0-based
     label_file.write(bytearray([labels[i][0] - 1]))
     image_file.flush()
     label_file.flush()
 
   # Cleanup
+  if gz:
+    image_path_tmp = image_file.name
+    label_path_tmp = label_file.name
   image_file.close()
   label_file.close()
+  if gz:
+    # Gzip the file
+    try:
+      image_file    = open(image_path_tmp, "rb")
+      label_file    = open(label_path_tmp, "rb")
+      image_file_gz = gzip.open(image_path, "wb")
+      label_file_gz = gzip.open(label_path, "wb")
+    except Exception as e:
+      print("Can't write output MNIST files: %s" % e)
+      return
+    image_file_gz.write(image_file.read())
+    label_file_gz.write(label_file.read())
+    # Cleanup
+    image_file.close()
+    label_file.close()
+    image_file_gz.close()
+    label_file_gz.close()
+    os.remove(image_path_tmp)
+    os.remove(label_path_tmp)
 
 
 def main():
@@ -183,11 +212,13 @@ def main():
   parser.add_argument("-res", help = "Resolution of the output images",
                       type = int, default = 28)
   parser.add_argument("-prefix", help = "Output prefix", type = str)
+  parser.add_argument("-gz", help = "Gzip the MNIST dataset",
+                      action = "store_true")
 
   args = parser.parse_args()
 
   # Converter
-  svhn_to_mnist(args.svhn, args.out, args.res, args.prefix)
+  svhn_to_mnist(args.svhn, args.out, args.res, args.prefix, args.gz)
 
 
 if __name__ == "__main__":
